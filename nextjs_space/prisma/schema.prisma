@@ -1,0 +1,571 @@
+generator client {
+    provider = "prisma-client-js"
+    binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+    output = "/home/ubuntu/orion/nextjs_space/node_modules/.prisma/client"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          String    @default("customer")
+  phone         String?
+  address       String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  accounts      Account[]
+  sessions      Session[]
+  orders        Order[]
+  cartItems     CartItem[]
+  reviews       Review[]
+  posts         Post[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Category {
+  id            String    @id @default(cuid())
+  name          String
+  nameEn        String
+  slug          String    @unique
+  icon          String?
+  image         String?
+  description   String?
+  descriptionEn String?
+  createdAt     DateTime  @default(now())
+  products      Product[]
+}
+
+model Product {
+  id            String      @id @default(cuid())
+  name          String
+  nameEn        String
+  slug          String      @unique
+  description   String?     @db.Text
+  descriptionEn String?     @db.Text
+  price         Float
+  originalPrice Float?
+  image         String
+  images        String[]    @default([])
+  categoryId    String
+  category      Category    @relation(fields: [categoryId], references: [id])
+  stock         Int         @default(100)
+  rating        Float       @default(0)
+  reviewCount   Int         @default(0)
+  featured      Boolean     @default(false)
+  active        Boolean     @default(true)
+  specs         Json?       @default("{}")
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  orderItems    OrderItem[]
+  cartItems     CartItem[]
+  reviews       Review[]
+
+  @@index([categoryId])
+  @@index([featured])
+  @@index([price])
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  orderNumber     String      @unique
+  userId          String?
+  user            User?       @relation(fields: [userId], references: [id])
+  customerName    String
+  customerEmail   String
+  customerPhone   String
+  shippingAddress String      @db.Text
+  paymentMethod   String      @default("cod")
+  paymentStatus   String      @default("unpaid")
+  paidAt          DateTime?
+  status          String      @default("pending")
+  subtotal        Float
+  shippingFee     Float       @default(0)
+  total           Float
+  note            String?     @db.Text
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  items           OrderItem[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  name      String
+  price     Float
+  quantity  Int
+  image     String?
+
+  @@index([orderId])
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+  @@index([userId])
+}
+
+model Post {
+  id             String        @id @default(cuid())
+  title          String
+  titleEn        String?
+  slug           String        @unique
+  excerpt        String?       @db.Text
+  excerptEn      String?       @db.Text
+  content        String?       @db.Text
+  contentEn      String?       @db.Text
+  customCss      String?       @db.Text
+  headerHtml     String?       @db.Text
+  footerHtml     String?       @db.Text
+  blocks         String?       @db.Text
+  visibility     String        @default("public")
+  viewRoles      String?
+  image          String?
+  metaTitle      String?
+  metaDescription String?
+  published      Boolean       @default(false)
+  publishedAt    DateTime?
+  expiresAt      DateTime?
+  postCategoryId String?
+  postCategory   PostCategory? @relation(fields: [postCategoryId], references: [id])
+  authorId       String?
+  author         User?         @relation(fields: [authorId], references: [id])
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([published])
+  @@index([createdAt])
+  @@index([publishedAt])
+  @@index([expiresAt])
+  @@index([postCategoryId])
+}
+
+model PostCategory {
+  id            String   @id @default(cuid())
+  name          String
+  nameEn        String?
+  slug          String   @unique
+  description   String?
+  descriptionEn String?
+  order         Int      @default(0)
+  createdAt     DateTime @default(now())
+  posts         Post[]
+
+  @@index([order])
+}
+
+model Page {
+  id              String   @id @default(cuid())
+  title           String
+  titleEn         String?
+  slug            String   @unique
+  blocks          String   @db.Text @default("[]")
+  blocksEn        String?  @db.Text
+  visibility      String   @default("public")
+  viewRoles       String?
+  isHomepage      Boolean  @default(false)
+  published       Boolean  @default(true)
+  showInMenu      Boolean  @default(false)
+  menuOrder       Int      @default(0)
+  metaTitle       String?
+  metaDescription String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([isHomepage])
+  @@index([published])
+  @@index([showInMenu])
+}
+
+model SiteSetting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String @db.Text
+}
+
+model AiConfig {
+  id           String   @id @default(cuid())
+  key          String   @unique @default("default")
+  provider     String   @default("openai")
+  model        String   @default("gpt-4o-mini")
+  systemPrompt String   @db.Text
+  useWebsiteData Boolean @default(true)
+  updatedAt    DateTime @updatedAt
+}
+
+model AiUsageLog {
+  id           String   @id @default(cuid())
+  createdAt    DateTime @default(now())
+  modelId      String
+  provider     String
+  complexity   String
+  inputTokens  Int      @default(0)
+  outputTokens Int      @default(0)
+  estimatedCost Float   @default(0)
+  baselineCost Float    @default(0)
+  fallbackUsed Boolean  @default(false)
+
+  @@index([createdAt])
+}
+
+model KnowledgeDoc {
+  id        String   @id @default(cuid())
+  title     String
+  fileName  String?
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  rating    Int
+  comment   String?  @db.Text
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+  @@index([productId])
+}
+
+model ChatSession {
+  id           String    @id @default(cuid())
+  customerName String
+  gender       String?
+  note         String?   @db.Text
+  email        String?
+  phone        String?
+  userId       String?
+  status       String    @default("open")
+  assignedTo   String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  messages     ChatLog[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ChatLog {
+  id        String      @id @default(cuid())
+  sessionId String
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role      String
+  content   String      @db.Text
+  createdAt DateTime    @default(now())
+
+  @@index([sessionId])
+}
+
+model AiAgent {
+  id              String       @id @default(cuid())
+  name            String
+  nameEn          String?
+  description     String?      @db.Text
+  descriptionEn   String?      @db.Text
+  icon            String       @default("Bot")
+  model           String       @default("gpt-4.1-mini")
+  systemPrompt    String       @db.Text
+  roles           String       @default("")
+  temperature     Float        @default(0.3)
+  maxTokens       Int          @default(1200)
+  suggestedPrompts String?     @db.Text
+  useWebsiteData  Boolean      @default(false)
+  embeddable      Boolean      @default(false)
+  active          Boolean      @default(true)
+  order           Int          @default(0)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  docs            AiAgentDoc[]
+
+  @@index([active])
+}
+
+model AiAgentDoc {
+  id        String   @id @default(cuid())
+  agentId   String
+  agent     AiAgent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  title     String
+  fileName  String?
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([agentId])
+}
+
+model CrmNote {
+  id        String   @id @default(cuid())
+  userId    String
+  authorId  String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model CrmTag {
+  id       String          @id @default(cuid())
+  name     String          @unique
+  color    String          @default("#3b82f6")
+  contacts CrmContactTag[]
+}
+
+model CrmContactTag {
+  id     String @id @default(cuid())
+  userId String
+  tagId  String
+  tag    CrmTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tagId])
+  @@index([userId])
+  @@index([tagId])
+}
+
+model CrmTask {
+  id          String    @id @default(cuid())
+  userId      String?
+  assignedTo  String?
+  title       String
+  description String?   @db.Text
+  priority    String    @default("normal")
+  status      String    @default("pending")
+  dueDate     DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([assignedTo])
+  @@index([status])
+  @@index([dueDate])
+}
+
+model Project {
+  id              String          @id @default(cuid())
+  name            String
+  description     String?         @db.Text
+  ownerId         String
+  progress        Int             @default(0)
+  expectedRevenue Float           @default(0)
+  status          String          @default("active")
+  startDate       DateTime        @default(now())
+  dueDate         DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  members         ProjectMember[]
+  updates         ProjectUpdate[]
+
+  @@index([ownerId])
+  @@index([status])
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  role      String   @default("member")
+  createdAt DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@index([userId])
+}
+
+model ProjectUpdate {
+  id        String   @id @default(cuid())
+  projectId String
+  authorId  String
+  content   String   @db.Text
+  progress  Int?
+  createdAt DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([createdAt])
+}
+
+model Campaign {
+  id          String    @id @default(cuid())
+  name        String
+  channel     String    @default("email")
+  objective   String?   @db.Text
+  budget      Float     @default(0)
+  status      String    @default("draft")
+  startDate   DateTime?
+  endDate     DateTime?
+  reach       Int       @default(0)
+  clicks      Int       @default(0)
+  conversions Int       @default(0)
+  revenue     Float     @default(0)
+  ownerId     String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([ownerId])
+  @@index([status])
+  @@index([channel])
+}
+
+model Coupon {
+  id            String    @id @default(cuid())
+  code          String    @unique
+  description   String?
+  discountType  String    @default("percent")
+  discountValue Float     @default(0)
+  usageLimit    Int?
+  usageCount    Int       @default(0)
+  active        Boolean   @default(true)
+  expiresAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([active])
+}
+
+model Lead {
+  id        String   @id @default(cuid())
+  name      String?
+  email     String?
+  phone     String?
+  company   String?
+  message   String?  @db.Text
+  data      Json?
+  source    String?
+  sourceUrl String?
+  status    String   @default("new")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ===== Module Điều hành (Operations) =====
+
+model OrgPosition {
+  id              String        @id @default(cuid())
+  title           String
+  parentId        String?
+  userId          String?
+  canUseAiSummary Boolean       @default(false)
+  order           Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  parent          OrgPosition?  @relation("OrgHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children        OrgPosition[] @relation("OrgHierarchy")
+
+  @@index([parentId])
+  @@index([userId])
+}
+
+model OpTask {
+  id          String    @id @default(cuid())
+  title       String
+  description String?   @db.Text
+  assignerId  String
+  assigneeId  String
+  status      String    @default("todo")
+  priority    String    @default("normal")
+  dueDate     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([assigneeId])
+  @@index([assignerId])
+  @@index([status])
+}
+
+model OpReport {
+  id          String   @id @default(cuid())
+  authorId    String
+  toUserId    String?
+  taskId      String?
+  title       String
+  content     String   @db.Text
+  attachments String?  @db.Text
+  aiSummary   String?  @db.Text
+  createdAt   DateTime @default(now())
+
+  @@index([authorId])
+  @@index([toUserId])
+  @@index([createdAt])
+}
+
+model OpProposal {
+  id           String    @id @default(cuid())
+  proposerId   String
+  approverId   String
+  title        String
+  content      String    @db.Text
+  attachments  String?   @db.Text
+  status       String    @default("pending")
+  decisionNote String?   @db.Text
+  aiSummary    String?   @db.Text
+  decidedAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([proposerId])
+  @@index([approverId])
+  @@index([status])
+}
