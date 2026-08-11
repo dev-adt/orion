@@ -1,0 +1,28 @@
+services:
+  db:
+    image: postgres:16
+    restart: always
+    environment:
+      POSTGRES_USER: orion
+      POSTGRES_PASSWORD: DoiMatKhauNayDi_2026
+      POSTGRES_DB: orion
+    volumes:
+      - orion_pgdata:/var/lib/postgresql/data
+    expose:
+      - "5432"
+
+  app:
+    build: .
+    restart: always
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: "postgresql://orion:DoiMatKhauNayDi_2026@db:5432/orion"
+      NEXTAUTH_SECRET: "DAT_1_CHUOI_BI_MAT_NGAU_NHIEN_DAI"
+      NEXTAUTH_URL: "https://orion.tenmiencuaban.com"
+      NODE_ENV: "production"
+    ports:
+      - "3001:3000"
+
+volumes:
+  orion_pgdata:
